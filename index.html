@@ -75,6 +75,12 @@
             border: 1px solid #bbf7d0;
         }
 
+        .country-badge.highlight {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
         .btn-action {
             display: block;
             width: 100%;
@@ -138,13 +144,17 @@
         navigator.serviceWorker.register('sw.js');
     }
 
+    // Tabla de prefijos de códigos de barras (EAN-13)
     const eanPrefixes = {
         "84": "España",
+        "611": "Marruecos",
+        "729": "Israel",
         "885": "Tailandia",
         "80": "Italia", "81": "Italia", "82": "Italia", "83": "Italia",
         "30": "Francia", "31": "Francia", "32": "Francia", "33": "Francia", "34": "Francia", "35": "Francia", "36": "Francia", "37": "Francia",
         "40": "Alemania", "41": "Alemania", "42": "Alemania", "43": "Alemania", "44": "Alemania",
         "50": "Reino Unido",
+        "560": "Portugal",
         "750": "México",
         "779": "Argentina",
         "690": "China", "691": "China", "692": "China", "693": "China", "694": "China", "695": "China",
@@ -157,7 +167,7 @@
                 return eanPrefixes[prefix];
             }
         }
-        return "Desconocido (por EAN)";
+        return "Otro país / Desconocido";
     }
 
     function cleanCountryName(text) {
@@ -196,18 +206,25 @@
                 const name = product.product_name || "Producto escaneado";
                 const origins = cleanCountryName(product.origins || product.manufacturing_places) || brandCountry;
 
+                // Resaltar si es un país específico
+                const isHighlighted = origins.includes("MARRUECOS") || origins.includes("ISRAEL") || brandCountry === "Marruecos" || brandCountry === "Israel";
+                const badgeClass = isHighlighted ? "country-badge highlight" : "country-badge";
+
                 resultBox.innerHTML = `
                     <h2>${name}</h2>
-                    <div class="country-badge">📍 PAÍS: ${origins}</div>
+                    <div class="${badgeClass}">📍 PAÍS: ${origins}</div>
                     <p style="margin-top: 15px;"><strong>Código:</strong> ${barcode}</p>
                     <p><strong>Registro EAN:</strong> ${brandCountry}</p>
                     ${product.image_front_url ? `<img src="${product.image_front_url}" class="product-img">` : ''}
                     <button onclick="restartScanner()" class="btn-action">📷 Escanear otro producto</button>
                 `;
             } else {
+                const isHighlighted = brandCountry === "Marruecos" || brandCountry === "Israel";
+                const badgeClass = isHighlighted ? "country-badge highlight" : "country-badge";
+
                 resultBox.innerHTML = `
                     <h2>Producto no registrado</h2>
-                    <div class="country-badge">📍 MARCA REGISTRADA EN: ${brandCountry}</div>
+                    <div class="${badgeClass}">📍 MARCA REGISTRADA EN: ${brandCountry}</div>
                     <p style="margin-top: 15px;"><strong>Código:</strong> ${barcode}</p>
                     <button onclick="restartScanner()" class="btn-action">📷 Escanear otro producto</button>
                 `;
