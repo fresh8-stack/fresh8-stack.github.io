@@ -1,6 +1,154 @@
-<link rel="manifest" href="manifest.json">
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
-  }
-</script>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escáner de Origen de Alimentos</title>
+    
+    <!-- Vinculación PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0284c7">
+
+    <!-- Librería Html5-Qrcode para lectura de códigos de barras -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f4f4f9;
+        }
+        h1 {
+            font-size: 1.5rem;
+            color: #333;
+        }
+        #reader {
+            width: 100%;
+            margin-top: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #result-box {
+            margin-top: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            text-align: left;
+            display: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .flag {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+        .loading {
+            color: #d97706;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc2626;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Escáner de País de Origen</h1>
+    <p>Apunta al código de barras del producto con tu cámara</p>
+
+    <!-- Contenedor de la cámara -->
+    <div id="reader"></div>
+
+    <!-- Contenedor con los resultados -->
+    <div id="result-box"></div>
+
+    <script>
+        // Registrar Service Worker para PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+
+        const eanPrefixes = {
+            "84": "España",
+            "80": "Italia", "81": "Italia", "82": "Italia", "83": "Italia",
+            "30": "Francia", "31": "Francia", "32": "Francia", "33": "Francia", "34": "Francia", "35": "Francia", "36": "Francia", "37": "Francia",
+            "40": "Alemania", "41": "Alemania", "42": "Alemania", "43": "Alemania", "44": "Alemania",
+            "50": "Reino Unido",
+            "750": "México",
+            "779": "Argentina",
+            "690": "China", "691": "China", "692": "China", "693": "China", "694": "China", "695": "China",
+            "00": "EE. UU. / Canadá", "01": "EE. UU. / Canadá", "02": "EE. UU. / Canadá", "03": "EE. UU. / Canadá", "04": "EE. UU. / Canadá", "05": "EE. UU. / Canadá", "06": "EE. UU. / Canadá", "07": "EE. UU. / Canadá", "08": "EE. UU. / Canadá", "09": "EE. UU. / Canadá"
+        };
+
+        function getCountryFromEAN(barcode) {
+            for (let prefix in eanPrefixes) {
+                if (barcode.startsWith(prefix)) {
+                    return eanPrefixes[prefix];
+                }
+            }
+            return "Desconocido (por prefijo EAN)";
+        }
+
+        async function fetchProductInfo(barcode) {
+            const resultBox = document.getElementById("result-box");
+            resultBox.style.display = "block";
+            resultBox.innerHTML = `<p class="loading">🔍 Buscando código ${barcode} en Open Food Facts...</p>`;
+
+            try {
+                const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
+                const data = await response.json();
+
+                if (data.status === 1) {
+                    const product = data.product;
+                    const name = product.product_name || "Producto sin nombre registrado";
+                    const origins = product.origins || product.manufacturing_places || product.countries_tags?.join(", ") || "No especificado en la base de datos";
+                    const brandCountry = getCountryFromEAN(barcode);
+
+                    resultBox.innerHTML = `
+                        <h3>${name}</h3>
+                        <p><strong>Código de barras:</strong> ${barcode}</p>
+                        <p class="flag"><strong>Origen de ingredientes/fabricación:</strong> ${origins}</p>
+                        <p><strong>País de registro de la marca (EAN):</strong> ${brandCountry}</p>
+                        ${product.image_front_url ? `<img src="${product.image_front_url}" style="max-width: 100px; border-radius: 4px;">` : ''}
+                    `;
+                } else {
+                    const brandCountry = getCountryFromEAN(barcode);
+                    resultBox.innerHTML = `
+                        <p class="error">⚠️ Producto no encontrado en Open Food Facts.</p>
+                        <p><strong>Código:</strong> ${barcode}</p>
+                        <p><strong>Sede / Registro del fabricante (vía EAN):</strong> ${brandCountry}</p>
+                    `;
+                }
+            } catch (error) {
+                console.error("Error al consultar la API:", error);
+                resultBox.innerHTML = `<p class="error">Error al conectar con la base de datos.</p>`;
+            }
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            html5QrcodeScanner.pause();
+            fetchProductInfo(decodedText).then(() => {
+                setTimeout(() => {
+                    try { html5QrcodeScanner.resume(); } catch(e){}
+                }, 5000);
+            });
+        }
+
+        const html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader", 
+            { 
+                fps: 10, 
+                qrbox: { width: 250, height: 150 },
+                supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+            },
+            false
+        );
+
+        html5QrcodeScanner.render(onScanSuccess);
+    </script>
+</body>
+</html>
