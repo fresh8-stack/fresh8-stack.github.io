@@ -144,17 +144,13 @@
         navigator.serviceWorker.register('sw.js');
     }
 
-    // Tabla de prefijos de códigos de barras (EAN-13)
     const eanPrefixes = {
         "84": "España",
-        "611": "Marruecos",
-        "729": "Israel",
         "885": "Tailandia",
         "80": "Italia", "81": "Italia", "82": "Italia", "83": "Italia",
         "30": "Francia", "31": "Francia", "32": "Francia", "33": "Francia", "34": "Francia", "35": "Francia", "36": "Francia", "37": "Francia",
         "40": "Alemania", "41": "Alemania", "42": "Alemania", "43": "Alemania", "44": "Alemania",
         "50": "Reino Unido",
-        "560": "Portugal",
         "750": "México",
         "779": "Argentina",
         "690": "China", "691": "China", "692": "China", "693": "China", "694": "China", "695": "China",
@@ -167,7 +163,7 @@
                 return eanPrefixes[prefix];
             }
         }
-        return "Otro país / Desconocido";
+        return "Desconocido (por EAN)";
     }
 
     function cleanCountryName(text) {
@@ -176,19 +172,7 @@
     }
 
     let html5QrCode = null;
-
-    async function stopCamera() {
-        if (html5QrCode) {
-            try {
-                if (html5QrCode.isScanning) {
-                    await html5QrCode.stop();
-                }
-                html5QrCode.clear();
-            } catch (err) {
-                console.warn("Error al detener la cámara:", err);
-            }
-        }
-    }
+    let isScanningActive = true;
 
     async function fetchProductInfo(barcode) {
         const resultBox = document.getElementById("result-box");
@@ -206,25 +190,18 @@
                 const name = product.product_name || "Producto escaneado";
                 const origins = cleanCountryName(product.origins || product.manufacturing_places) || brandCountry;
 
-                // Resaltar si es un país específico
-                const isHighlighted = origins.includes("MARRUECOS") || origins.includes("ISRAEL") || brandCountry === "Marruecos" || brandCountry === "Israel";
-                const badgeClass = isHighlighted ? "country-badge highlight" : "country-badge";
-
                 resultBox.innerHTML = `
                     <h2>${name}</h2>
-                    <div class="${badgeClass}">📍 PAÍS: ${origins}</div>
+                    <div class="country-badge">📍 PAÍS: ${origins}</div>
                     <p style="margin-top: 15px;"><strong>Código:</strong> ${barcode}</p>
                     <p><strong>Registro EAN:</strong> ${brandCountry}</p>
                     ${product.image_front_url ? `<img src="${product.image_front_url}" class="product-img">` : ''}
                     <button onclick="restartScanner()" class="btn-action">📷 Escanear otro producto</button>
                 `;
             } else {
-                const isHighlighted = brandCountry === "Marruecos" || brandCountry === "Israel";
-                const badgeClass = isHighlighted ? "country-badge highlight" : "country-badge";
-
                 resultBox.innerHTML = `
                     <h2>Producto no registrado</h2>
-                    <div class="${badgeClass}">📍 MARCA REGISTRADA EN: ${brandCountry}</div>
+                    <div class="country-badge">📍 MARCA REGISTRADA EN: ${brandCountry}</div>
                     <p style="margin-top: 15px;"><strong>Código:</strong> ${barcode}</p>
                     <button onclick="restartScanner()" class="btn-action">📷 Escanear otro producto</button>
                 `;
@@ -237,34 +214,38 @@
         }
     }
 
-    async function onScanSuccess(decodedText) {
-        await stopCamera();
+    function onScanSuccess(decodedText) {
+        if (!isScanningActive) return; // Ignora lecturas si está pausado
+        
+        isScanningActive = false; // Bloquea nuevas lecturas sin apagar la cámara
+        if (html5QrCode) {
+            html5QrCode.pause(true); // Pausa el escáner suavemente
+        }
         fetchProductInfo(decodedText);
     }
 
-    async function startScanner() {
-        document.getElementById("reader").innerHTML = "";
-        html5QrCode = new Html5Qrcode("reader");
+    function startScanner() {
+        if (!html5QrCode) {
+            html5QrCode = new Html5Qrcode("reader");
+        }
 
         const config = { fps: 10, qrbox: { width: 250, height: 150 } };
 
-        try {
-            await html5QrCode.start(
-                { facingMode: "environment" }, 
-                config, 
-                onScanSuccess
-            );
-        } catch (err) {
+        html5QrCode.start(
+            { facingMode: "environment" }, 
+            config, 
+            onScanSuccess
+        ).catch(err => {
             console.error("Error al iniciar cámara:", err);
-        }
+        });
     }
 
-    async function restartScanner() {
+    function restartScanner() {
         document.getElementById("result-box").style.display = "none";
-        await stopCamera();
-        setTimeout(() => {
-            startScanner();
-        }, 300);
+        isScanningActive = true;
+        if (html5QrCode) {
+            html5QrCode.resume(); // Reanuda instantáneamente sin pantalla negra
+        }
     }
 
     // Iniciar escáner al cargar
