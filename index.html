@@ -133,105 +133,113 @@
     </a>
 
     <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
-        }
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js');
+    }
 
-        const eanPrefixes = {
-            "84": "España",
-            "885": "Tailandia",
-            "80": "Italia", "81": "Italia", "82": "Italia", "83": "Italia",
-            "30": "Francia", "31": "Francia", "32": "Francia", "33": "Francia", "34": "Francia", "35": "Francia", "36": "Francia", "37": "Francia",
-            "40": "Alemania", "41": "Alemania", "42": "Alemania", "43": "Alemania", "44": "Alemania",
-            "50": "Reino Unido",
-            "750": "México",
-            "779": "Argentina",
-            "690": "China", "691": "China", "692": "China", "693": "China", "694": "China", "695": "China",
-            "00": "EE. UU. / Canadá", "01": "EE. UU. / Canadá", "02": "EE. UU. / Canadá", "03": "EE. UU. / Canadá", "04": "EE. UU. / Canadá", "05": "EE. UU. / Canadá", "06": "EE. UU. / Canadá", "07": "EE. UU. / Canadá", "08": "EE. UU. / Canadá", "09": "EE. UU. / Canadá"
-        };
+    const eanPrefixes = {
+        "84": "España",
+        "885": "Tailandia",
+        "80": "Italia", "81": "Italia", "82": "Italia", "83": "Italia",
+        "30": "Francia", "31": "Francia", "32": "Francia", "33": "Francia", "34": "Francia", "35": "Francia", "36": "Francia", "37": "Francia",
+        "40": "Alemania", "41": "Alemania", "42": "Alemania", "43": "Alemania", "44": "Alemania",
+        "50": "Reino Unido",
+        "750": "México",
+        "779": "Argentina",
+        "690": "China", "691": "China", "692": "China", "693": "China", "694": "China", "695": "China",
+        "00": "EE. UU. / Canadá", "01": "EE. UU. / Canadá", "02": "EE. UU. / Canadá", "03": "EE. UU. / Canadá", "04": "EE. UU. / Canadá", "05": "EE. UU. / Canadá", "06": "EE. UU. / Canadá", "07": "EE. UU. / Canadá", "08": "EE. UU. / Canadá", "09": "EE. UU. / Canadá"
+    };
 
-        function getCountryFromEAN(barcode) {
-            for (let prefix in eanPrefixes) {
-                if (barcode.startsWith(prefix)) {
-                    return eanPrefixes[prefix];
-                }
+    function getCountryFromEAN(barcode) {
+        for (let prefix in eanPrefixes) {
+            if (barcode.startsWith(prefix)) {
+                return eanPrefixes[prefix];
             }
-            return "Desconocido (por EAN)";
         }
+        return "Desconocido (por EAN)";
+    }
 
-        function cleanCountryName(text) {
-            if (!text) return null;
-            return text.replace(/en:/g, '').replace(/es:/g, '').replace(/-/g, ' ').toUpperCase();
-        }
+    function cleanCountryName(text) {
+        if (!text) return null;
+        return text.replace(/en:/g, '').replace(/es:/g, '').replace(/-/g, ' ').toUpperCase();
+    }
 
-        async function fetchProductInfo(barcode) {
-            const resultBox = document.getElementById("result-box");
-            resultBox.style.display = "block";
-            resultBox.innerHTML = `<p class="loading">🔍 Buscando origen del código ${barcode}...</p>`;
+    let html5QrCode = null;
 
-            try {
-                const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
-                const data = await response.json();
+    async function fetchProductInfo(barcode) {
+        const resultBox = document.getElementById("result-box");
+        resultBox.style.display = "block";
+        resultBox.innerHTML = `<p class="loading">🔍 Buscando origen del código ${barcode}...</p>`;
 
-                let brandCountry = getCountryFromEAN(barcode);
+        try {
+            const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
+            const data = await response.json();
 
-                if (data.status === 1) {
-                    const product = data.product;
-                    const name = product.product_name || "Producto escaneado";
-                    const origins = cleanCountryName(product.origins || product.manufacturing_places) || brandCountry;
+            let brandCountry = getCountryFromEAN(barcode);
 
-                    resultBox.innerHTML = `
-                        <h2>${name}</h2>
-                        <div class="country-badge">📍 PAÍS: ${origins}</div>
-                        <p style="margin-top: 15px;"><strong>Código de barras:</strong> ${barcode}</p>
-                        <p><strong>Registro EAN:</strong> ${brandCountry}</p>
-                        ${product.image_front_url ? `<img src="${product.image_front_url}" class="product-img">` : ''}
-                        <button onclick="restartScanner()" class="btn-action">📷 Escanear otro producto</button>
-                    `;
-                } else {
-                    resultBox.innerHTML = `
-                        <h2>Producto no registrado</h2>
-                        <div class="country-badge">📍 MARCA REGISTRADA EN: ${brandCountry}</div>
-                        <p style="margin-top: 15px;"><strong>Código de barras:</strong> ${barcode}</p>
-                        <button onclick="restartScanner()" class="btn-action">📷 Escanear otro producto</button>
-                    `;
-                }
-            } catch (error) {
+            if (data.status === 1) {
+                const product = data.product;
+                const name = product.product_name || "Producto escaneado";
+                const origins = cleanCountryName(product.origins || product.manufacturing_places) || brandCountry;
+
                 resultBox.innerHTML = `
-                    <p class="error">Error al conectar con la base de datos.</p>
-                    <button onclick="restartScanner()" class="btn-action">Reintentar</button>
+                    <h2>${name}</h2>
+                    <div class="country-badge">📍 PAÍS: ${origins}</div>
+                    <p style="margin-top: 15px;"><strong>Código:</strong> ${barcode}</p>
+                    <p><strong>Registro EAN:</strong> ${brandCountry}</p>
+                    ${product.image_front_url ? `<img src="${product.image_front_url}" class="product-img">` : ''}
+                    <button onclick="restartScanner()" class="btn-action">📷 Escanear otro producto</button>
+                `;
+            } else {
+                resultBox.innerHTML = `
+                    <h2>Producto no registrado</h2>
+                    <div class="country-badge">📍 MARCA REGISTRADA EN: ${brandCountry}</div>
+                    <p style="margin-top: 15px;"><strong>Código:</strong> ${barcode}</p>
+                    <button onclick="restartScanner()" class="btn-action">📷 Escanear otro producto</button>
                 `;
             }
+        } catch (error) {
+            resultBox.innerHTML = `
+                <p class="error">Error al conectar con la base de datos.</p>
+                <button onclick="restartScanner()" class="btn-action">Reintentar</button>
+            `;
+        }
+    }
+
+    function onScanSuccess(decodedText) {
+        if (html5QrCode && html5QrCode.isScanning) {
+            html5QrCode.stop().then(() => {
+                fetchProductInfo(decodedText);
+            }).catch(err => {
+                console.error("Error al detener la cámara:", err);
+                fetchProductInfo(decodedText);
+            });
+        }
+    }
+
+    function startScanner() {
+        if (!html5QrCode) {
+            html5QrCode = new Html5Qrcode("reader");
         }
 
-        let html5QrcodeScanner;
+        const config = { fps: 10, qrbox: { width: 250, height: 150 } };
 
-        function onScanSuccess(decodedText) {
-            if (html5QrcodeScanner) {
-                html5QrcodeScanner.clear();
-            }
-            fetchProductInfo(decodedText);
-        }
+        html5QrCode.start(
+            { facingMode: "environment" }, 
+            config, 
+            onScanSuccess
+        ).catch(err => {
+            console.error("Error al iniciar cámara:", err);
+        });
+    }
 
-        function startScanner() {
-            html5QrcodeScanner = new Html5QrcodeScanner(
-                "reader", 
-                { 
-                    fps: 10, 
-                    qrbox: { width: 250, height: 150 },
-                    supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
-                },
-                false
-            );
-            html5QrcodeScanner.render(onScanSuccess);
-        }
-
-        function restartScanner() {
-            document.getElementById("result-box").style.display = "none";
-            startScanner();
-        }
-
+    function restartScanner() {
+        document.getElementById("result-box").style.display = "none";
         startScanner();
-    </script>
+    }
+
+    // Iniciar escáner
+    startScanner();
+</script>
 </body>
 </html>
