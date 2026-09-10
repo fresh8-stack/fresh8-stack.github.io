@@ -45,6 +45,7 @@
 
         #reader {
             width: 100%;
+            min-height: 250px;
             border-radius: 16px;
             overflow: hidden;
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
@@ -166,6 +167,19 @@
 
     let html5QrCode = null;
 
+    async function stopCamera() {
+        if (html5QrCode) {
+            try {
+                if (html5QrCode.isScanning) {
+                    await html5QrCode.stop();
+                }
+                html5QrCode.clear();
+            } catch (err) {
+                console.warn("Error al detener la cámara:", err);
+            }
+        }
+    }
+
     async function fetchProductInfo(barcode) {
         const resultBox = document.getElementById("result-box");
         resultBox.style.display = "block";
@@ -206,39 +220,37 @@
         }
     }
 
-    function onScanSuccess(decodedText) {
-        if (html5QrCode && html5QrCode.isScanning) {
-            html5QrCode.stop().then(() => {
-                fetchProductInfo(decodedText);
-            }).catch(err => {
-                console.error("Error al detener la cámara:", err);
-                fetchProductInfo(decodedText);
-            });
-        }
+    async function onScanSuccess(decodedText) {
+        await stopCamera();
+        fetchProductInfo(decodedText);
     }
 
-    function startScanner() {
-        if (!html5QrCode) {
-            html5QrCode = new Html5Qrcode("reader");
-        }
+    async function startScanner() {
+        document.getElementById("reader").innerHTML = "";
+        html5QrCode = new Html5Qrcode("reader");
 
         const config = { fps: 10, qrbox: { width: 250, height: 150 } };
 
-        html5QrCode.start(
-            { facingMode: "environment" }, 
-            config, 
-            onScanSuccess
-        ).catch(err => {
+        try {
+            await html5QrCode.start(
+                { facingMode: "environment" }, 
+                config, 
+                onScanSuccess
+            );
+        } catch (err) {
             console.error("Error al iniciar cámara:", err);
-        });
+        }
     }
 
-    function restartScanner() {
+    async function restartScanner() {
         document.getElementById("result-box").style.display = "none";
-        startScanner();
+        await stopCamera();
+        setTimeout(() => {
+            startScanner();
+        }, 300);
     }
 
-    // Iniciar escáner
+    // Iniciar escáner al cargar
     startScanner();
 </script>
 </body>
