@@ -2,12 +2,11 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Escáner de Origen de Alimentos</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0284c7">
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         :root {
             --primary: #0284c7;
@@ -16,11 +15,9 @@
             --card-bg: #ffffff;
             --text: #1e293b;
         }
-
         * {
             box-sizing: border-box;
         }
-
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             max-width: 480px;
@@ -30,36 +27,38 @@
             color: var(--text);
             text-align: center;
         }
-
         .header {
             margin-bottom: 16px;
         }
-
         h1 {
             font-size: 1.5rem;
             margin-bottom: 6px;
             color: var(--primary-dark);
         }
-
         p.subtitle {
             font-size: 0.9rem;
             color: #64748b;
             margin: 0;
         }
-
         #scanner-container {
             width: 100%;
+            height: 320px;                 /* ← IMPORTANTE */
             border-radius: 16px;
             overflow: hidden;
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
             background: #000;
+            position: relative;
         }
-
         #reader {
-            width: 100%;
+            width: 100% !important;
+            height: 100% !important;
             border: none;
         }
-
+        #reader video {
+            object-fit: cover !important;
+            width: 100% !important;
+            height: 100% !important;
+        }
         #result-box {
             margin-top: 10px;
             padding: 20px;
@@ -69,7 +68,6 @@
             display: none;
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
         }
-
         .country-badge {
             background: #dcfce7;
             color: #166534;
@@ -80,7 +78,6 @@
             margin-top: 12px;
             display: inline-block;
         }
-
         .btn-action {
             display: block;
             width: 100%;
@@ -96,7 +93,6 @@
             text-align: center;
             text-decoration: none;
         }
-
         .btn-kofi {
             display: inline-block;
             width: 100%;
@@ -115,22 +111,18 @@
             box-shadow: 0 4px 10px rgba(255, 94, 91, 0.25);
             transition: transform 0.1s ease;
         }
-
         .btn-kofi:active {
             transform: scale(0.97);
         }
-
         .loading {
             color: #d97706;
             font-weight: bold;
             text-align: center;
         }
-
         .error {
             color: #dc2626;
             text-align: center;
         }
-
         img.product-img {
             max-width: 130px;
             border-radius: 8px;
@@ -140,21 +132,17 @@
     </style>
 </head>
 <body>
-
     <div class="header">
         <h1>🔍 Escáner de Origen</h1>
         <p class="subtitle" id="instruction-text">Apunta al código de barras del producto</p>
     </div>
 
-    <!-- Contenedor del Escáner -->
     <div id="scanner-container">
         <div id="reader"></div>
     </div>
 
-    <!-- Resultados -->
     <div id="result-box"></div>
 
-    <!-- Botón Ko-fi Ajustado -->
     <div style="text-align: center;">
         <a href="https://ko-fi.com/buymeacoffeeapp" target="_blank" class="btn-kofi">
             ☕ Apoyar el proyecto
@@ -278,26 +266,17 @@
             }
 
             const config = {
-                fps: 15,
-                qrbox: function(viewfinderWidth, viewfinderHeight) {
-                    let minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                    let size = Math.floor(minEdge * 0.75);
-                    return { width: size, height: Math.floor(size * 0.6) };
-                },
-                aspectRatio: 1.777,
-                disableFlip: false
-            };
-
-            const cameraConfig = {
-                facingMode: "environment"
+                fps: 12,
+                qrbox: { width: 250, height: 150 },
+                aspectRatio: 1.777778
             };
 
             try {
                 await html5QrCode.start(
-                    cameraConfig,
+                    { facingMode: "environment" },
                     config,
                     onScanSuccess,
-                    () => {}
+                    () => {} // silenciar errores de no detección
                 );
                 isScannerRunning = true;
             } catch (err) {
@@ -308,13 +287,14 @@
 
         async function restartScanner() {
             await stopScanner();
-            setTimeout(async () => {
-                await startScanner();
-            }, 350);
+            setTimeout(() => {
+                startScanner();
+            }, 400);
         }
 
+        // Esperar a que el DOM esté listo
         document.addEventListener("DOMContentLoaded", () => {
-            setTimeout(startScanner, 400);
+            setTimeout(startScanner, 500);
         });
     </script>
 </body>
