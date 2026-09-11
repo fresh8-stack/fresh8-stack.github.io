@@ -92,11 +92,12 @@
         if (html5QrCode && isScannerRunning) {
             try {
                 await html5QrCode.stop();
-                await html5QrCode.clear();   // muy importante
+                await html5QrCode.clear();
             } catch (err) {
                 console.warn("Error al parar cámara:", err);
+            } finally {
+                isScannerRunning = false;
             }
-            isScannerRunning = false;
         }
     }
 
@@ -107,31 +108,25 @@
         document.getElementById("instruction-text").style.display = "block";
         document.getElementById("result-box").style.display = "none";
 
-        // Evitar múltiples inicios
         if (isScannerRunning) return;
 
         if (!html5QrCode) {
             html5QrCode = new Html5Qrcode("reader");
         }
 
-        // Configuración optimizada para móviles
         const config = {
-            fps: 15,                          // un poco más fluido
+            fps: 15,
             qrbox: function(viewfinderWidth, viewfinderHeight) {
-                // Hace el área de escaneo adaptativa (mejor rendimiento)
                 let minEdge = Math.min(viewfinderWidth, viewfinderHeight);
                 let size = Math.floor(minEdge * 0.75);
                 return { width: size, height: Math.floor(size * 0.6) };
             },
-            aspectRatio: 1.777,               // 16:9
+            aspectRatio: 1.777,
             disableFlip: false
         };
 
-        // Limitar resolución de la cámara (esto es clave para que no vaya lenta)
         const cameraConfig = {
-            facingMode: "environment",
-            // Descomenta la línea de abajo si quieres forzar resolución baja
-            // video: { width: { ideal: 1280 }, height: { ideal: 720 } }
+            facingMode: "environment"
         };
 
         try {
@@ -139,9 +134,7 @@
                 cameraConfig,
                 config,
                 onScanSuccess,
-                (errorMessage) => {
-                    // silenciar errores de "no se detectó código"
-                }
+                () => {} // Ignorar frame sin código
             );
             isScannerRunning = true;
         } catch (err) {
@@ -151,16 +144,16 @@
     }
 
     async function restartScanner() {
+        // Aseguramos que la detención termine por completo antes de esperar el delay
         await stopScanner();
-        // Pequeña pausa para que el navegador libere el stream
-        setTimeout(() => {
-            startScanner();
-        }, 300);
+        
+        // Retardo para dar tiempo a Android a liberar el Stream del sensor
+        setTimeout(async () => {
+            await startScanner();
+        }, 350);
     }
 
-    // Esperar a que todo esté listo
     document.addEventListener("DOMContentLoaded", () => {
-        // Pequeño delay ayuda en algunos móviles
         setTimeout(startScanner, 400);
     });
 </script>
