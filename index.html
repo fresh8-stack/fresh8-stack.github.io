@@ -25,6 +25,7 @@
             background-color: var(--bg);
             color: var(--text);
             text-align: center;
+            box-sizing: border-box;
         }
 
         .header {
@@ -91,13 +92,31 @@
             margin-top: 18px;
             text-align: center;
             text-decoration: none;
+            box-sizing: border-box;
         }
 
-        .btn-paypal {
-            background: #ffc439;
-            color: #003087;
-            margin-top: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        .btn-kofi {
+            display: inline-block;
+            width: 100%;
+            max-width: 260px;
+            background: #ff5e5b;
+            color: #ffffff;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 20px auto 0 auto;
+            text-align: center;
+            text-decoration: none;
+            box-shadow: 0 4px 10px rgba(255, 94, 91, 0.25);
+            transition: transform 0.1s ease;
+            box-sizing: border-box;
+        }
+
+        .btn-kofi:active {
+            transform: scale(0.97);
         }
 
         .loading {
@@ -134,10 +153,12 @@
     <!-- Resultados -->
     <div id="result-box"></div>
 
-    <!-- Botón Donación PayPal -->
-    <a href="https://www.paypal.me/fajardorama" target="_blank" class="btn-action btn-paypal">
-        ☕ Invítame a un café
-    </a>
+    <!-- Botón Ko-fi Ajustado -->
+    <div style="text-align: center;">
+        <a href="https://ko-fi.com/buymeacoffeeapp" target="_blank" class="btn-kofi">
+            ☕ Apoyar el proyecto
+        </a>
+    </div>
 
     <script>
         if ('serviceWorker' in navigator) {
@@ -219,11 +240,9 @@
             if (isProcessing) return;
             isProcessing = true;
 
-            // Ocultar la pantalla negra/escáner y la instrucción
             document.getElementById("scanner-container").style.display = "none";
             document.getElementById("instruction-text").style.display = "none";
 
-            // Detener el sensor de la cámara en segundo plano
             if (html5QrCode) {
                 html5QrCode.stop().then(() => {
                     fetchProductInfo(decodedText);
@@ -260,7 +279,6 @@
             startScanner();
         }
 
-        // Iniciar escáner de primera mano
         startScanner();
     </script>
 </body>
